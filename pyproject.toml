@@ -1,0 +1,15 @@
+[project]
+name = "cuda-lab"
+version = "0.1.0"
+description = "End-to-end CUDA toolchain lab: CMake + Ninja + nvcc + MSVC + CTest, plus a CUDA-enabled PyTorch env"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+# torch 需要专用轮子索引，用 setup-torch 的方式安装：
+#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+torch = ["torch", "torchvision"]
+
+[tool.uv]
+# 常规依赖走清华 TUNA；torch 见上面注释
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
