@@ -38,11 +38,38 @@ pwsh -File .\build.ps1 -Test      # 额外跑 ctest
 
 ```powershell
 & .\.venv\Scripts\Activate.ps1
-python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+python gpu_check.py     # 完整 GPU 自检，全部通过时打印 GPU CHECK PASSED
 ```
 
+本机实测（RTX 4060 Laptop 8GB）：
+
+```
+torch          : 2.14.0+cu126
+cuda build     : 12.6
+cudnn          : 91002
+capability     : sm_89
+add            : OK max|d|=0.00e+00
+matmul 2048    : OK rel_err=1.85e-06
+fp16 matmul    : OK dtype=torch.float16
+matmul time    : 2.410 ms  (7.1 TFLOPS fp32)
+GPU CHECK PASSED
+```
+
+### 重装/升级 torch 的正确方式
+
+**必须用 uv 的 `--torch-backend`**，不要手工拼 `--index-url`：
+
+```powershell
+uv pip install --reinstall --torch-backend cu126 torch torchvision
+```
+
+原因（踩过的坑）：在 Windows 上 **PyPI 的 `torch` 是 CPU-only 版**。
+若写成 `uv pip install torch --index-url https://download.pytorch.org/whl/cu126`，
+uv 会把这当成"额外索引"，从 PyPI 解析到版本号更高的 `2.14.0`（CPU 版）就收工，
+结果是 `torch.version.cuda == None`、`torch.cuda.is_available() == False`，
+而且 `--reinstall` 也救不回来（复用已解析的缓存）。
+
 - Python **3.12.14**，由 `uv` 托管在 `E:\Tools\uv-python`
-- torch 走官方 cu126 轮子索引（`--index-url https://download.pytorch.org/whl/cu126`）
 - 其余包走清华 TUNA 镜像，缓存目录 `E:\Tools\pip-cache`
 
 ### 国内网络注意事项（本机已配置好）
