@@ -56,7 +56,49 @@ pwsh -File .\build.ps1 -Test      # 额外跑 ctest
 - IntelliSense 走 `build/compile_commands.json`（由 preset 自动导出）
 - `Ctrl+Shift+B` → `CMake: build (preset)`；测试任务里有 `CTest: run (preset)` 与 `Python: gpu_check.py`
 
-## 程序做了什么
+## CUDA 分析工具链（compute-sanitizer / Nsight Compute）
+
+```powershell
+pwsh -File .\tools\toolcheck.ps1
+```
+
+这个脚本不是"看工具能不能启动"，而是**故意写出坏核函数，验证工具真能抓到**：
+三个核函数分别是正确的、严重越界的（越界写 4096 个元素）、以及有共享内存竞态的。
+
+### 实测结果
+
+| 工具 | 目标 | 结果 |
+|---|---|---|
+| `memcheck` | 正确核函数 | `0 errors` ✅ |
+| `memcheck` | 越界核函数 | **`1025 errors`** ✅ 并给出精确诊断 |
+| `racecheck` | 竞态核函数 | `0 errors` ⚠️ **未报出**（见下） |
+| `ncu`（Nsight Compute） | `vectorAdd` | ✅ `dram__throughput = 91.7% of peak`，`40.96 µs` |
+
+memcheck 的诊断质量很高，直接指出越界距离与分配大小：
+
+```
+Invalid __global__ write of size 4 bytes
+  at oobKernel(float *, float *, int)+0x410 in tools/toolcheck.cu:32
+  by thread (0,0,0) in block (0,0,0)
+  Address 0x706605000 is out of bounds
+  and is 12,289 bytes after the nearest allocation at 0x706601000 of size 4,096 bytes
+```
+
+`ncu` 那条 `dram__throughput = 91.7% of peak` 还独立佐证了 `cuda_lab` 里测的
+~590 GB/s 已接近该 GPU 的内存带宽上限，说明那个带宽数字不是自说自话。
+
+### ⚠️ 两个已知限制
+
+**1. racecheck 在本机不报共享内存竞态。** 我用了两种明确的竞态模式
+（同槽位冲突 `s[t]=t; out[t]=s[31-t]`、以及邻居读写 `s[(t+1)&31]`），
+各编译两遍（带 `-G` 与不带），racecheck 全部返回 `0 errors`。
+这更像是该工具在这台机器/驱动上的限制，而非用例问题。
+**结论：本机不要依赖 racecheck 判断竞态**，改成用 memcheck + `synccheck`，
+或人工审查共享内存读写。
+
+**2. 一个 float 的越界可能不会被报出。** `cudaMalloc` 按页分配，
+只越界 1~2 个元素可能仍落在分配的页内，memcheck 认为是合法访问。
+写测试用例时要越界得足够远（本脚本用 4096 个元素），否则会误以为"没问题"。
 
 `src/main.cu` 在 1M 个元素上跑两个核函数（`vectorAdd`、`saxpy`），
 把 GPU 结果与 CPU 参考值逐元素比对，并用 CUDA event 测有效带宽。

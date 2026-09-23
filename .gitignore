@@ -2,6 +2,7 @@
 build/
 build-debug/
 build_ext/
+build-toolcheck/
 out/
 *.obj
 *.o
