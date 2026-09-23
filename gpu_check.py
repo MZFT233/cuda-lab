@@ -1,4 +1,4 @@
-"""GPU sanity check for the cuda-lab environment.
+r"""GPU sanity check for the cuda-lab environment.
 
 Run:  & .\.venv\Scripts\python.exe gpu_check.py
 Exits non-zero if CUDA is unavailable or results are wrong.
