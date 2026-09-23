@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: configure (preset)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "default"],
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "CMake: build (preset)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "default"],
+      "problemMatcher": ["$msCompile"],
+      "group": { "kind": "build", "isDefault": true },
+      "dependsOn": "CMake: configure (preset)"
+    },
+    {
+      "label": "CTest: run (preset)",
+      "type": "shell",
+      "command": "ctest",
+      "args": ["--preset", "default"],
+      "problemMatcher": [],
+      "group": "test",
+      "dependsOn": "CMake: build (preset)"
+    },
+    {
+      "label": "Python: gpu_check.py",
+      "type": "shell",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "args": ["gpu_check.py"],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Build via build.ps1 (vcvars path)",
+      "type": "shell",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}\\build.ps1", "-Test"],
+      "problemMatcher": ["$msCompile"],
+      "group": "build"
+    }
+  ]
+}
