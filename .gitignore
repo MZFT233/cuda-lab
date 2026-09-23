@@ -1,10 +1,14 @@
 # build artifacts
 build/
+build-debug/
+build_ext/
 out/
 *.obj
+*.o
 *.exe
 *.lib
 *.exp
+*.pyd
 *.pdb
 *.ilk
 *.cubin

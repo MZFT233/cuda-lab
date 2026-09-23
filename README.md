@@ -102,6 +102,51 @@ uv 会把这当成"额外索引"，从 PyPI 解析到版本号更高的 `2.14.0`
 - Python **3.12.14**，由 `uv` 托管在 `E:\Tools\uv-python`
 - 其余包走清华 TUNA 镜像，缓存目录 `E:\Tools\pip-cache`
 
+## 自定义 CUDA 算子（最严格的工具链测试）
+
+```powershell
+& .\.venv\Scripts\python.exe -X utf8 ext_check.py
+```
+
+用 `torch.utils.cpp_extension.load_inline` 现场编译两个 CUDA 核函数
+（逐元素 `scale_add`，以及带共享内存 + `atomicAdd` 的 `device_sum`），加载后与 CPU 结果比对。
+这一关同时考验 Python 头文件、`cl.exe`、nvcc 与 MSVC 链接器。
+
+本机实测：
+
+```
+build OK
+scale_add correctness     : OK max|d|=9.54e-07
+device_sum correctness    : OK gpu=1089.048 cpu=1089.046
+second invocation         : OK all elements == 7.0
+EXTENSION CHECK PASSED     (约 141s，含首次编译)
+```
+
+### 中文 Windows 上的 `oem` 编解码器坑（已封装在 ext_check.py 内）
+
+`torch/utils/cpp_extension.py` 里有硬编码：
+
+```python
+SUBPROCESS_DECODE_ARGS = ('oem',) if IS_WINDOWS else ()
+compiler_info = subprocess.check_output(compiler, stderr=subprocess.STDOUT)
+compiler_info.decode(*SUBPROCESS_DECODE_ARGS)
+```
+
+它会**不带参数运行 `cl.exe`**（输出一大段本地化帮助文本），再用 `oem` 编解码器解码。
+本机 OEM 代码页是 **936**，而 CPython 在 Windows 上**没有 936 的 `oem` 映射表**，于是：
+
+```
+UnicodeDecodeError: 'cp1' codec can't decode bytes ...
+decoding with 'oem' codec failed
+```
+
+关键点：这个异常发生在**真正编译开始之前**，极易被误判成"编译器没配好"。
+`ext_check.py` 将该常量替换为 `('utf-8', 'replace')`——解码结果只用于
+`re.search(r'(\d+)\.(\d+)\.(\d+)')` 取 ASCII 版本号，中文解成乱码无影响。
+
+试过但**无效**的两种做法（记录以免重走）：`chcp 65001`（该映射表缺失与代码页无关）、
+覆盖 `locale.getpreferredencoding`（torch 用 `IS_WINDOWS` 硬编码，根本不查 locale）。
+
 ### 国内网络注意事项（本机已配置好）
 
 这台机器上 `github.com` 被 Steam++（Watt Toolkit）的 hosts 规则指向 `127.0.0.1`，
