@@ -1,0 +1,16 @@
+# build artifacts
+build/
+out/
+*.obj
+*.exe
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.cubin
+*.ptx
+
+# python
+.venv/
+__pycache__/
+*.pyc
