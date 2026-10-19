@@ -3,7 +3,11 @@ name = "cuda-lab"
 version = "0.1.0"
 description = "End-to-end CUDA toolchain lab: CMake + Ninja + nvcc + MSVC + CTest, plus a CUDA-enabled PyTorch env"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  # CPU-only wheel (官方 pip 轮子不带 CUDA)；OpenCL 可用，CUDA 模块不可用。
+  # 想跑 cudaarithm/cudafilters 等 GPU 模块需要源码编译，见 README。
+  "opencv-python>=5.0",
+]
 
 [project.optional-dependencies]
 # torch 必须用 uv 的 --torch-backend 装（PyPI 上的 torch 在 Windows 是 CPU-only）：
